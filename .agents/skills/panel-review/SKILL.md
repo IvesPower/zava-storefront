@@ -27,56 +27,101 @@ Run a **two-persona review** (architect + security) on staged changes before you
 - **Required:** staged changes (`git diff --staged`). Skill auto-reads.
 - **Optional:** scope hint (`--scope auth`, `--scope storage`, `--scope ui`) to focus the personas.
 
-## Output
+## Output (fixed contract, always)
 
-A markdown report with two sections — one per persona — each containing:
+Return this exact structure every run so humans and tools can act on it without reformatting:
 
 ```markdown
-## 🏛️ Architect review
+## PR Review Report: <short change title>
 
-### What I see
-<one-paragraph summary of the change in architectural terms>
-
-### Concerns
-- **<concern>** — <why it matters> — <suggested fix or "open question">
-- ...
-
-### Looks good
-- <brief positive note when things are well-structured>
+Based on expert reviews from the architect and security personas, here's the comprehensive analysis:
 
 ---
 
-## 🛡️ Security review
+### 🏛️ Architect Review
 
-### What I see
-<one-paragraph summary in security terms>
+**Strengths:**
+✅ <strength 1>
+✅ <strength 2>
+✅ <strength 3>
 
-### Findings
-- **[BLOCKER] <finding>** — <impact> — <required fix>
-- **[WARNING] <finding>** — <impact> — <suggested fix>
-- **[INFO] <finding>** — <observation only>
+**Critical Concerns:**
+1. **`[DESIGN FLAW|SCALING RISK|COUPLING|INCONSISTENT|OPPORTUNITY]` — <title>**
+ - Evidence: `<file>:<line>`
+ - Impact: <why it matters>
+ - **Fix:** <actionable fix>
 
-### Checklist (from `secure-coding-base.instructions.md`)
-- [x] / [ ] No new secrets
-- [x] / [ ] AuthN + AuthZ on new handlers
-- [x] / [ ] Parameterized queries
-- [x] / [ ] Dependencies justified
-- [x] / [ ] PII masked in logs
+No concerns case: write exactly `No concerns.`
+
+---
+
+### 🛡️ Security Review
+
+**Strengths:**
+✅ <strength 1>
+✅ <strength 2>
+✅ <strength 3>
+
+**Findings:**
+- **🚨 BLOCKER — <title>**
+  - Evidence: `<file>:<line>`
+  - Impact: <impact>
+  - **Required fix:** <actionable fix>
+- **⚠️ WARNING — <title>**
+  - Evidence: `<file>:<line>`
+  - Impact: <impact>
+  - **Suggested fix:** <actionable fix>
+- **ℹ️ INFO — <title>**
+  - Evidence: `<file>:<line>`
+  - Impact: <impact>
+  - Note: <observation>
+
+No findings case: write exactly `No findings.`
+
+---
+
+### 📋 Security Baseline Checklist
+
+| Item | Status | Notes |
+|------|--------|-------|
+| No new secrets | ✅/❌ | <brief note> |
+| AuthN + AuthZ on handlers | ✅/❌ | <brief note> |
+| Parameterized queries | ✅/❌ | <brief note> |
+| Dependencies justified | ✅/❌ | <brief note> |
+| PII masked in logs | ✅/❌ | <brief note> |
+
+---
+
+### Recommendation
+
+**Do not merge in current state.** | **Safe to merge.**
+
+**Next steps:**
+1. <highest-priority action>
+2. <next action>
+3. <next action>
+
+Gates:
+- `ARCHITECT_GATE=PASS|FAIL`
+- `SECURITY_GATE=PASS|FAIL`
+- `OVERALL_GATE=PASS|FAIL`
 ```
 
 ## Process
 
 1. **Read the diff.** `git diff --staged` is the source of truth, not the working tree.
-2. **Invoke the architect persona** (`.apm/agents/architect.agent.md`) with the diff as input. Ask for: scaling implications, coupling, missing abstractions, testability, deviation from existing patterns.
-3. **Invoke the security persona** (`.apm/agents/security.agent.md`) with the diff. Ask for: each item in the `secure-coding-base` checklist, plus any new attack surface.
-4. **Aggregate findings** into the report format above. Tag severity honestly — not every concern is a blocker.
-5. **Surface the report to the human** for action. Do not auto-amend the commit.
+2. **Run pass 1 (architecture) in isolation.** Invoke architect persona with explicit instruction: "architecture dimension only; no security findings."
+3. **Run pass 2 (security) in isolation.** Invoke security persona with explicit instruction: "security dimension only; no architecture/style/test findings unless direct security risk."
+4. **Normalize both outputs** into the fixed report structure above.
+5. **Publish report** for action. Do not auto-amend the commit.
 
 ## Hard rules
 
-- **Diff-only input.** Do not read files outside the diff unless explicitly asked. Reviewers' job is the change, not the codebase tour.
-- **Severity is honest.** A `[BLOCKER]` means "do not push." Inflating severity destroys trust in the panel.
-- **No silent skips.** If a persona has nothing to say, write "no concerns" explicitly. Empty sections look like the skill broke.
+- **One dimension per pass.** Mixed-dimension findings are invalid; rerun the offending pass.
+- **Fixed schema only.** Do not improvise sections or headings.
+- **Diff-only input.** Do not read files outside the diff unless explicitly asked.
+- **Severity is honest.** A `BLOCKER` means "do not push."
+- **No silent skips.** If a pass has no issues, emit the required `No concerns.` / `No findings.` text.
 
 ## Wired to the `pr-review-gate` hook
 
