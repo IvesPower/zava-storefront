@@ -26,6 +26,41 @@ This repo pins **`DevExpGbb/zava-agent-config@^1.0.0`** via [`apm.yml`](apm.yml)
 
 Run `apm install` after cloning to materialize them into your harness.
 
+## API endpoints
+
+| Method | Path | Description | Auth |
+|---|---|---|---|
+| `GET` | `/api/products?limit=&offset=` | Paginated product list | Public |
+| `POST` | `/api/cart/apply-promo` | Apply a percentage promo code to a cart; returns updated totals | Public |
+
+### `POST /api/cart/apply-promo`
+
+**Request body:**
+```json
+{
+  "items": [{ "productId": "string", "quantity": 1, "unitPriceCents": 2999 }],
+  "promoCode": "SAVE10",
+  "region": "GB"
+}
+```
+
+**Response:**
+```json
+{
+  "valid": true,
+  "discountPercent": 10,
+  "totals": {
+    "subtotalCents": 2999,
+    "discountCents": 299,
+    "taxCents": 540,
+    "totalCents": 3240
+  }
+}
+```
+
+When `valid` is `false` the response also includes a `reason` string.
+Available promo codes: `SAVE10` (10 %), `ZAVA15` (15 %), `SAVE20` (20 %, orders ≥ €50).
+
 ## Local dev
 
 ```bash
