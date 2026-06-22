@@ -15,6 +15,28 @@ export interface CartTotals {
   totalCents: number;
 }
 
+/** Promo code definition with percentage-based discount */
+export interface PromoCode {
+  code: string;
+  discountPercent: number;
+  minSubtotalCents?: number;
+}
+
+/** Result of promo validation (used by endpoint) */
+export interface PromoValidationResult {
+  valid: boolean;
+  discountPercent: number;
+  minSubtotalCents?: number;
+}
+
+// In-memory promo registry. Replace with DB-backed lookup for runtime management.
+// See: https://github.com/IvesPower/zava-storefront/pull/1#out-of-scope-observations
+const PROMO_REGISTRY: Readonly<Record<string, PromoCode>> = {
+  SAVE10: { code: 'SAVE10', discountPercent: 10 },
+  SAVE20: { code: 'SAVE20', discountPercent: 20, minSubtotalCents: 5_000 },
+  ZAVA15: { code: 'ZAVA15', discountPercent: 15 },
+} as const;
+
 export function addItem(cart: CartItem[], item: CartItem): CartItem[] {
   const existing = cart.findIndex((c) => c.productId === item.productId);
   if (existing === -1) return [...cart, item];
@@ -27,13 +49,28 @@ export function removeItem(cart: CartItem[], productId: string): CartItem[] {
   return cart.filter((c) => c.productId !== productId);
 }
 
+/** Validate a promo code against subtotal without revealing code/threshold details.
+ *  Returns validation result without error reason to prevent enumeration attacks.
+ *  @param code - Promo code string (case-insensitive)
+ *  @param subtotalCents - Cart subtotal in cents
+ *  @returns PromoValidationResult with valid flag and discount info if valid
+ */
+export function validatePromoCode(code: string, subtotalCents: number): PromoValidationResult {
+  const promo = PROMO_REGISTRY[code.toUpperCase()];
+  if (!promo) {
+    return { valid: false, discountPercent: 0 };
+  }
+  if (promo.minSubtotalCents && subtotalCents < promo.minSubtotalCents) {
+    return { valid: false, discountPercent: 0 };
+  }
+  return { valid: true, discountPercent: promo.discountPercent, minSubtotalCents: promo.minSubtotalCents };
+}
+
 export function applyDiscount(subtotalCents: number, code: string | null): number {
   if (!code) return 0;
-  const upper = code.toUpperCase();
-  if (upper === 'WELCOME10') return Math.floor(subtotalCents * 0.10);
-  if (upper === 'VIP25' && subtotalCents >= 10_000) return Math.floor(subtotalCents * 0.25);
-  if (upper === 'FREESHIP') return 0;
-  return 0;
+  const validation = validatePromoCode(code, subtotalCents);
+  if (!validation.valid) return 0;
+  return Math.floor(subtotalCents * validation.discountPercent / 100);
 }
 
 export function computeTax(taxableCents: number, region: string): number {

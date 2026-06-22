@@ -26,6 +26,62 @@ This repo pins **`DevExpGbb/zava-agent-config@^1.0.0`** via [`apm.yml`](apm.yml)
 
 Run `apm install` after cloning to materialize them into your harness.
 
+## API endpoints
+
+| Method | Path | Description | Auth |
+|---|---|---|---|
+| `GET` | `/api/products?limit=&offset=` | Paginated product list | Public |
+| `POST` | `/api/cart/apply-promo` | Apply a percentage promo code to a cart; returns updated totals | Public (rate-limited) |
+
+### `POST /api/cart/apply-promo`
+
+Apply a promo code to a cart and receive updated totals with discount and tax.
+
+**Request body:**
+```json
+{
+  "items": [{ "productId": "string", "quantity": 1, "unitPriceCents": 2999 }],
+  "promoCode": "SAVE10",
+  "region": "GB"
+}
+```
+
+**Response (valid code):**
+```json
+{
+  "valid": true,
+  "discountPercent": 10,
+  "totals": {
+    "subtotalCents": 2999,
+    "discountCents": 299,
+    "taxCents": 540,
+    "totalCents": 3240
+  }
+}
+```
+
+**Response (invalid code or threshold not met):**
+```json
+{
+  "valid": false,
+  "discountPercent": 0,
+  "totals": {
+    "subtotalCents": 2999,
+    "discountCents": 0,
+    "taxCents": 600,
+    "totalCents": 3599
+  },
+  "reason": "promo code not applicable"
+}
+```
+
+**Available promo codes:**
+- `SAVE10` — 10% discount (no minimum)
+- `ZAVA15` — 15% discount (no minimum)
+- `SAVE20` — 20% discount (minimum order: €50)
+
+**Rate limiting:** 10 requests per IP per minute. Exceeding this returns a `429 Too Many Requests`.
+
 ## Local dev
 
 ```bash
